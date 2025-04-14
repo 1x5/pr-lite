@@ -201,17 +201,17 @@ const OrderPage = () => {
 
           <div className="space-y-2">
             <div>
-              <div className="text-gray-500 text-sm">Название:</div>
+              <div className="text-gray-500 text-xs">Название:</div>
               {isEditing ? (
                 <input
                   type="text"
                   value={order.name}
                   onChange={(e) => setOrder(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full p-1.5 sm:p-2 mt-0.5 sm:mt-1 bg-white border rounded-md"
+                  className="w-full p-1.5 sm:p-2 mt-0.5 sm:mt-1 bg-white border rounded-md text-sm"
                 />
               ) : (
                 <div 
-                  className={`text-gray-900 py-1 sm:p-2 ${order.phone && order.messenger ? 'cursor-pointer' : ''}`}
+                  className={`text-gray-900 py-1 sm:p-2 text-sm text-sm ${order.phone && order.messenger ? 'cursor-pointer' : ''}`}
                   onClick={handleMessengerClick}
                 >
                   {order.name}
@@ -222,21 +222,21 @@ const OrderPage = () => {
             {isEditing && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <div className="text-gray-500 text-sm">Телефон:</div>
+                  <div className="text-gray-500 text-xs">Телефон:</div>
                   <input
                     type="tel"
                     value={order.phone}
                     onChange={(e) => setOrder(prev => ({ ...prev, phone: e.target.value }))}
                     placeholder="+7 (___) ___-__-__"
-                    className="w-full p-1.5 sm:p-2 bg-white border rounded-md"
+                    className="w-full p-1.5 sm:p-2 bg-white border rounded-md text-sm"
                   />
                 </div>
                 <div>
-                  <div className="text-gray-500 text-sm">Мессенджер:</div>
+                  <div className="text-gray-500 text-xs">Мессенджер:</div>
                   <select
                     value={order.messenger}
                     onChange={(e) => setOrder(prev => ({ ...prev, messenger: e.target.value }))}
-                    className="w-full p-1.5 sm:p-2 bg-white border rounded-md"
+                    className="w-full p-1.5 sm:p-2 bg-white border rounded-md text-sm"
                   >
                     <option value="WhatsApp">WhatsApp</option>
                     <option value="Telegram">Telegram</option>
@@ -248,31 +248,31 @@ const OrderPage = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <div>
-                  <div className="text-gray-500 text-sm">Стоимость:</div>
-                  <div className="text-gray-900 py-1 sm:p-2">{order.cost} ₽</div>
+                  <div className="text-gray-500 text-xs">Стоимость:</div>
+                  <div className="text-gray-900 py-1 sm:p-2 text-sm">{order.cost} ₽</div>
                 </div>
                 <div>
-                  <div className="text-gray-500 text-sm">Себестоимость:</div>
-                  <div className="text-gray-900 py-1 sm:p-2">{totalExpenses} ₽</div>
+                  <div className="text-gray-500 text-xs">Себестоимость:</div>
+                  <div className="text-gray-900 py-1 sm:p-2 text-sm">{totalExpenses} ₽</div>
                 </div>
                 <div>
-                  <div className="text-gray-500 text-sm">Прибыль:</div>
-                  <div className="text-green-500 py-1 sm:p-2">{profit} ₽</div>
+                  <div className="text-gray-500 text-xs">Прибыль:</div>
+                  <div className="text-green-500 py-1 sm:p-2 text-sm">{profit} ₽</div>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <div>
-                  <div className="text-gray-500 text-sm">Предоплата:</div>
-                  <div className="text-gray-900 py-1 sm:p-2">{order.prepayment} ₽</div>
+                  <div className="text-gray-500 text-xs">Предоплата:</div>
+                  <div className="text-gray-900 py-1 sm:p-2 text-sm">{order.prepayment} ₽</div>
                 </div>
                 <div>
-                  <div className="text-gray-500 text-sm">Остаток:</div>
-                  <div className="text-red-500 py-1 sm:p-2">{remaining} ₽</div>
+                  <div className="text-gray-500 text-xs">Остаток:</div>
+                  <div className="text-red-500 py-1 sm:p-2 text-sm">{remaining} ₽</div>
                 </div>
                 <div>
-                  <div className="text-gray-500 text-sm">Процент:</div>
-                  <div className="text-gray-900 py-1 sm:p-2">{profitPercentage}%</div>
+                  <div className="text-gray-500 text-xs">Процент:</div>
+                  <div className="text-gray-900 py-1 sm:p-2 text-sm">{profitPercentage}%</div>
                 </div>
               </div>
             </div>
@@ -369,7 +369,7 @@ const OrderPage = () => {
                 placeholder="Введите заметки..."
               />
             ) : (
-              <p className="text-gray-700">{order.notes}</p>
+              <p className="text-gray-700 text-sm">{order.notes}</p>
             )}
           </div>
         )}
@@ -383,7 +383,7 @@ const OrderPage = () => {
             </div>
             <div className="grid grid-cols-2 gap-2 sm:gap-4">
               <div>
-                <div className="text-gray-500 text-sm">Начало:</div>
+                <div className="text-gray-500 text-xs">Начало:</div>
                 {isEditing ? (
                   <input
                     type="date"
@@ -392,11 +392,11 @@ const OrderPage = () => {
                     className="w-full p-1.5 sm:p-2 mt-0.5 sm:mt-1 bg-white border rounded-md"
                   />
                 ) : (
-                  <div className="text-gray-900 py-1 sm:p-2">{order.startDate}</div>
+                  <div className="text-gray-900 py-1 sm:p-2 text-sm">{order.startDate}</div>
                 )}
               </div>
               <div>
-                <div className="text-gray-500 text-sm">Окончание:</div>
+                <div className="text-gray-500 text-xs">Окончание:</div>
                 {isEditing ? (
                   <input
                     type="date"
@@ -405,7 +405,7 @@ const OrderPage = () => {
                     className="w-full p-1.5 sm:p-2 mt-0.5 sm:mt-1 bg-white border rounded-md"
                   />
                 ) : (
-                  <div className="text-gray-900 py-1 sm:p-2">{order.endDate}</div>
+                  <div className="text-gray-900 py-1 sm:p-2 text-sm">{order.endDate}</div>
                 )}
               </div>
             </div>
