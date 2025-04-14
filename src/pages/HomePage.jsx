@@ -83,12 +83,22 @@ const HomePage = () => {
       <div className="px-2 sm:px-4 py-3">
         <div className="flex justify-between items-center mb-3">
           <h1 className="text-lg">Заказы</h1>
-          <button 
-            className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 text-gray-500"
-            onClick={handleStatusChange}
-          >
-            <div className={`w-2 h-2 rounded-full ${currentStatus.color}`}></div>
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              className="w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 text-gray-500"
+              onClick={handleStatusChange}
+            >
+              <div className={`w-2 h-2 rounded-full ${currentStatus.color}`}></div>
+            </button>
+            <button 
+              onClick={handleAddOrder} 
+              className="w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 text-gray-500"
+            >
+              <div className="w-3 h-3 flex items-center justify-center">
+                <span className="text-lg leading-none">+</span>
+              </div>
+            </button>
+          </div>
         </div>
 
         <div className="space-y-2">
