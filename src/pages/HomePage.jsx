@@ -1,103 +1,121 @@
 import React, { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
+import { Filter } from 'lucide-react';
 
 const HomePage = () => {
+  const navigate = useNavigate();
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  
   const [orders] = useState([
     {
       id: 1,
-      name: 'Стол обеденный',
-      endDate: '2025-04-08',
-      price: 13000,
+      name: 'Кухонный гарнитур',
+      date: '25.04',
+      day: 'Пт',
+      cost: 85000,
       profitPercent: 56.2,
-      status: 'active'
+      status: 'orange'
     },
     {
       id: 2,
-      name: 'Шкаф-купе',
-      endDate: '2025-04-15',
-      price: 35000,
+      name: 'Прихожая',
+      date: '18.04',
+      day: 'Пт',
+      cost: 27000,
       profitPercent: 47.1,
-      status: 'pending'
+      status: 'blue'
     },
     {
       id: 3,
-      name: 'Кухонный гарнитур',
-      endDate: '2025-04-25',
-      price: 85000,
-      profitPercent: 50.6,
-      status: 'completed'
+      name: 'Новый заказ',
+      date: '21.04',
+      day: 'Пн',
+      cost: 0,
+      profitPercent: 0,
+      status: 'orange'
     }
   ]);
 
-  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState('all');
+  const statusOptions = [
+    { id: 'all', name: 'Все', color: 'bg-gray-400' },
+    { id: 'orange', name: 'В работе', color: 'bg-orange-500' },
+    { id: 'blue', name: 'Ожидает', color: 'bg-blue-500' },
+    { id: 'green', name: 'Выполнен', color: 'bg-green-500' }
+  ];
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'active':
-        return 'bg-blue-100 text-blue-700';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-700';
-      case 'completed':
-        return 'bg-green-100 text-green-700';
+      case 'blue':
+        return 'bg-blue-500';
+      case 'orange':
+        return 'bg-orange-500';
+      case 'green':
+        return 'bg-green-500';
       default:
-        return 'bg-gray-100 text-gray-700';
+        return 'bg-gray-500';
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    
-    const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    
-    return `${day}.${month}`;
+  const getProfitColor = (percent) => {
+    return percent >= 50 ? 'text-green-700' : 'text-orange-700';
   };
 
-  const filteredOrders = selectedStatus === 'all' 
-    ? orders 
+  const handleAddOrder = () => {
+    navigate('/order/new');
+  };
+
+  const handleStatusChange = () => {
+    const currentIndex = statusOptions.findIndex(option => option.id === selectedStatus);
+    const nextIndex = (currentIndex + 1) % statusOptions.length;
+    setSelectedStatus(statusOptions[nextIndex].id);
+  };
+
+  const filteredOrders = selectedStatus === 'all'
+    ? orders
     : orders.filter(order => order.status === selectedStatus);
 
+  // Get the current status option
+  const currentStatus = statusOptions.find(option => option.id === selectedStatus) || statusOptions[0];
+
   return (
-    <div className="flex flex-col h-screen bg-white">
-      {/* Список заказов */}
-      <div className="flex-1 overflow-auto">
-        {filteredOrders.map(order => (
-          <Link
-            key={order.id}
-            to={`/order/${order.id}`}
-            className="block border-b last:border-b-0"
+    <div className="min-h-screen bg-white">
+      <div className="px-2 sm:px-4 py-3">
+        <div className="flex justify-between items-center mb-3">
+          <h1 className="text-lg">Заказы</h1>
+          <button 
+            className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 text-gray-500"
+            onClick={handleStatusChange}
           >
-            <div className="px-4 py-3">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4 flex-1">
-                  <div className={`w-1 h-4 rounded-full ${getStatusColor(order.status).replace('bg-', 'bg-').replace('text-', '')}`} />
-                  <span className="font-medium text-gray-900">{order.name}</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-gray-500">{formatDate(order.endDate)}</span>
-                  <span className="text-sm text-gray-500">{order.price}₽</span>
-                  <span className={`text-xs ${
-                    order.profitPercent >= 50 
-                      ? 'text-green-700' 
-                      : 'text-orange-700'
-                  }`}>
-                    {order.profitPercent}%
-                  </span>
+            <div className={`w-2 h-2 rounded-full ${currentStatus.color}`}></div>
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {filteredOrders.map(order => (
+            <Link
+              key={order.id}
+              to={`/order/${order.id}`}
+              className="block"
+            >
+              <div className="bg-gray-50 rounded-xl shadow-sm overflow-hidden">
+                <div className="flex items-center h-[40px]">
+                  <div className={`w-0.5 h-full ${getStatusColor(order.status)}`}></div>
+                  <div className="flex-grow min-w-0 ml-3 mr-2">
+                    <h3 className="text-sm text-gray-900 truncate">{order.name}</h3>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0 whitespace-nowrap pr-3">
+                    <span className="text-xs text-gray-500">{order.date} ({order.day})</span>
+                    <span className="text-sm text-gray-900">{order.cost}₽</span>
+                    <span className={`text-xs ${getProfitColor(order.profitPercent)}`}>
+                      {order.profitPercent}%
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </Link>
-        ))}
-      </div>
-
-      {/* Кнопка добавления */}
-      <div className="fixed bottom-6 right-6">
-        <button className="w-14 h-14 bg-purple-600 rounded-full flex items-center justify-center shadow-lg">
-          <Plus className="w-8 h-8 text-white" />
-        </button>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   );
