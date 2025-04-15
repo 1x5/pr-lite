@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
-import { Filter } from 'lucide-react';
 
 const HomePage = () => {
   const navigate = useNavigate();

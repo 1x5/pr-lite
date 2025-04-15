@@ -6,7 +6,6 @@ const OrderPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [order, setOrder] = useState({
     id: parseInt(id),
     name: 'Кухонный гарнитур',
@@ -37,7 +36,6 @@ const OrderPage = () => {
 
   const handleStatusChange = (status) => {
     setOrder(prev => ({ ...prev, status }));
-    setShowStatusDropdown(false);
   };
 
   const handleMessengerClick = () => {
