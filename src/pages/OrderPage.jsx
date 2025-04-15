@@ -2,6 +2,27 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Trash2, Plus, Link as LinkIcon, Camera, Save, X, Edit } from 'lucide-react';
 
+// Централизованные стили
+const styles = {
+  section: "bg-gray-50 rounded-lg p-3 sm:p-4",
+  header: "pb-2 border-b mb-3",
+  headerWithFlex: "flex justify-between items-center pb-2 border-b mb-3",
+  label: "text-gray-500 text-xs",
+  input: "w-full p-1.5 sm:p-2 bg-white border rounded-md text-sm",
+  inputWithMargin: "w-full p-1.5 sm:p-2 mt-0.5 sm:mt-1 bg-white border rounded-md text-sm",
+  valueText: "text-gray-900 py-1 sm:p-2 text-sm",
+  iconButton: "flex items-center justify-center rounded-full",
+  actionButton: "w-10 h-10 flex items-center justify-center rounded-full",
+  redButton: "w-10 h-10 flex items-center justify-center bg-red-500 rounded-full",
+  greenButton: "w-10 h-10 flex items-center justify-center bg-green-500 rounded-full",
+  blackButton: "w-10 h-10 flex items-center justify-center bg-gray-900 rounded-full",
+  sectionTitle: "text-base font-medium text-gray-900",
+  statusBadge: "px-3 py-1 text-white rounded-full text-xs",
+  uploadButton: "w-full p-4 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-500",
+  profitText: "text-green-500 py-1 sm:p-2 text-sm",
+  remainingText: "text-red-500 py-1 sm:p-2 text-sm"
+};
+
 const OrderPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -128,7 +149,7 @@ const OrderPage = () => {
   return (
     <div className="flex flex-col min-h-screen bg-white">
       {/* Шапка */}
-      <div className="px-2 sm:px-4 py-3 bg-white flex items-center justify-between">
+      <header className="px-2 sm:px-4 py-3 bg-white flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/')}
@@ -136,20 +157,20 @@ const OrderPage = () => {
           >
             <ArrowLeft size={24} />
           </button>
-          <span className="text-xl">{isEditing ? 'Редактирование' : 'Просмотр'}</span>
+          <span className="text-lg">{isEditing ? 'Редактирование' : 'Просмотр'}</span>
         </div>
         <div className="flex items-center gap-2">
           {isEditing ? (
             <>
               <button 
                 onClick={handleCancel}
-                className="w-10 h-10 flex items-center justify-center bg-red-500 rounded-full"
+                className={styles.redButton}
               >
                 <X size={20} className="text-white" />
               </button>
               <button 
                 onClick={handleSave}
-                className="w-10 h-10 flex items-center justify-center bg-green-500 rounded-full"
+                className={styles.greenButton}
               >
                 <Save size={20} className="text-white" />
               </button>
@@ -158,83 +179,82 @@ const OrderPage = () => {
             <>
               <button 
                 onClick={handleDelete}
-                className="w-10 h-10 flex items-center justify-center bg-red-500 rounded-full"
+                className={styles.redButton}
               >
                 <Trash2 size={20} className="text-white" />
               </button>
               <button 
                 onClick={handleEdit}
-                className="w-10 h-10 flex items-center justify-center bg-gray-900 rounded-full"
+                className={styles.blackButton}
               >
                 <Edit size={20} className="text-white" />
               </button>
             </>
           )}
         </div>
-      </div>
+      </header>
 
       {/* Основной контент */}
-      <div className="flex-1 p-2 sm:p-4 space-y-4">
+      <main className="flex-1 p-2 sm:p-4 space-y-4">
         {/* Информация */}
-        <div className="bg-gray-50 rounded-lg p-3 sm:p-4 space-y-2 sm:space-y-4">
-          <div className="flex justify-between items-start pb-2 border-b">
-            <h2 className="text-lg font-medium text-gray-900">Информация</h2>
+        <section className={styles.section}>
+          <header className={styles.header}>
+            <h2 className={styles.sectionTitle}>Информация</h2>
             {isEditing ? (
               <select
                 value={order.status}
                 onChange={(e) => handleStatusChange(e.target.value)}
-                className="px-3 py-1 text-white rounded-full text-sm appearance-none cursor-pointer"
-                style={{ backgroundColor: statusOptions[order.status]?.class.replace('bg-', '#').replace('yellow-400', 'eab308').replace('blue-500', '3b82f6').replace('green-500', '22c55e') }}
+                className={`${styles.statusBadge} ${statusOptions[order.status]?.class}`}
               >
                 {Object.entries(statusOptions).map(([value, { text }]) => (
                   <option key={value} value={value}>{text}</option>
                 ))}
               </select>
             ) : (
-              <div className={`px-3 py-1 text-white rounded-full text-sm ${statusOptions[order.status]?.class}`}>
+              <span className={styles.statusBadge}>
                 {statusOptions[order.status]?.text}
-              </div>
+              </span>
             )}
-          </div>
+          </header>
 
           <div className="space-y-2">
             <div>
-              <div className="text-gray-500 text-xs">Название:</div>
+              <label className={styles.label}>Название:</label>
               {isEditing ? (
                 <input
                   type="text"
                   value={order.name}
                   onChange={(e) => setOrder(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full p-1.5 sm:p-2 mt-0.5 sm:mt-1 bg-white border rounded-md text-sm"
+                  className={styles.input}
                 />
               ) : (
-                <div 
-                  className={`text-gray-900 py-1 sm:p-2 text-sm text-sm ${order.phone && order.messenger ? 'cursor-pointer' : ''}`}
+                <p 
+                  className={`${styles.valueText} ${order.phone && order.messenger ? 'cursor-pointer' : ''}`}
                   onClick={handleMessengerClick}
                 >
                   {order.name}
-                </div>
+                </p>
               )}
             </div>
 
             {isEditing && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <div className="text-gray-500 text-xs">Телефон:</div>
+                  <div className={styles.label}>Телефон:</div>
                   <input
                     type="tel"
                     value={order.phone}
                     onChange={(e) => setOrder(prev => ({ ...prev, phone: e.target.value }))}
                     placeholder="+7 (___) ___-__-__"
-                    className="w-full p-1.5 sm:p-2 bg-white border rounded-md text-sm"
+                    className={styles.input}
                   />
                 </div>
                 <div>
-                  <div className="text-gray-500 text-xs">Мессенджер:</div>
+                  <div className={styles.label}>Мессенджер:</div>
                   <select
                     value={order.messenger}
                     onChange={(e) => setOrder(prev => ({ ...prev, messenger: e.target.value }))}
-                    className="w-full p-1.5 sm:p-2 bg-white border rounded-md text-sm"
+                    className={styles.input}
                   >
                     <option value="WhatsApp">WhatsApp</option>
                     <option value="Telegram">Telegram</option>
@@ -246,60 +266,60 @@ const OrderPage = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <div>
-                  <div className="text-gray-500 text-xs">Стоимость:</div>
-                  <div className="text-gray-900 py-1 sm:p-2 text-sm">{order.cost} ₽</div>
+                  <div className={styles.label}>Стоимость:</div>
+                  <div className={styles.valueText}>{order.cost} ₽</div>
                 </div>
                 <div>
-                  <div className="text-gray-500 text-xs">Себестоимость:</div>
-                  <div className="text-gray-900 py-1 sm:p-2 text-sm">{totalExpenses} ₽</div>
+                  <div className={styles.label}>Себестоимость:</div>
+                  <div className={styles.valueText}>{totalExpenses} ₽</div>
                 </div>
                 <div>
-                  <div className="text-gray-500 text-xs">Прибыль:</div>
-                  <div className="text-green-500 py-1 sm:p-2 text-sm">{profit} ₽</div>
+                  <div className={styles.label}>Прибыль:</div>
+                  <div className={styles.profitText}>{profit} ₽</div>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <div>
-                  <div className="text-gray-500 text-xs">Предоплата:</div>
-                  <div className="text-gray-900 py-1 sm:p-2 text-sm">{order.prepayment} ₽</div>
+                  <div className={styles.label}>Предоплата:</div>
+                  <div className={styles.valueText}>{order.prepayment} ₽</div>
                 </div>
                 <div>
-                  <div className="text-gray-500 text-xs">Остаток:</div>
-                  <div className="text-red-500 py-1 sm:p-2 text-sm">{remaining} ₽</div>
+                  <div className={styles.label}>Остаток:</div>
+                  <div className={styles.remainingText}>{remaining} ₽</div>
                 </div>
                 <div>
-                  <div className="text-gray-500 text-xs">Процент:</div>
-                  <div className="text-gray-900 py-1 sm:p-2 text-sm">{profitPercentage}%</div>
+                  <div className={styles.label}>Процент:</div>
+                  <div className={styles.valueText}>{profitPercentage}%</div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </section>
 
         {/* Расходы */}
-        <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
-          <div className="space-y-3">
-            <div className="flex justify-between items-center pb-2 border-b">
-              <h2 className="text-lg font-medium text-gray-900">Расходы: {totalExpenses}₽</h2>
-              {isEditing && (
-                <button
-                  onClick={addExpense}
-                  className="w-8 h-8 flex items-center justify-center bg-gray-900 rounded-full"
-                >
-                  <Plus size={20} className="text-white" />
-                </button>
-              )}
-            </div>
+        <section className={styles.section}>
+          <header className={styles.headerWithFlex}>
+            <h2 className={styles.sectionTitle}>Расходы: {totalExpenses}₽</h2>
+            {isEditing && (
+              <button
+                onClick={addExpense}
+                className={styles.actionButton}
+              >
+                <Plus size={20} className="text-white" />
+              </button>
+            )}
+          </header>
+          <ul className="space-y-2">
             {order.expenses.map(expense => (
-              <div key={expense.id} className="flex items-center gap-2">
+              <li key={expense.id} className="flex items-center gap-2">
                 {isEditing ? (
                   <>
                     <input
                       type="text"
                       value={expense.name}
                       onChange={(e) => updateExpense(expense.id, 'name', e.target.value)}
-                      className="flex-1 p-1.5 sm:p-2 bg-white border rounded-md"
+                      className={styles.input}
                       placeholder="Название"
                     />
                     <button 
@@ -317,7 +337,7 @@ const OrderPage = () => {
                       type="number"
                       value={expense.amount}
                       onChange={(e) => updateExpense(expense.id, 'amount', Number(e.target.value))}
-                      className="w-16 p-1.5 sm:p-2 bg-white border rounded-md"
+                      className={styles.input}
                     />
                     <button
                       onClick={() => removeExpense(expense.id)}
@@ -348,87 +368,85 @@ const OrderPage = () => {
                     <span className="text-gray-900">{expense.amount} ₽</span>
                   </>
                 )}
-              </div>
+              </li>
             ))}
-          </div>
-        </div>
+          </ul>
+        </section>
 
         {/* Заметки */}
         {(!isEditing && !order.notes) ? null : (
-          <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
-            <div className="pb-2 border-b mb-3">
-              <h2 className="text-lg font-medium text-gray-900">Заметки</h2>
-            </div>
+          <section className={styles.section}>
+            <header className={styles.header}>
+              <h2 className={styles.sectionTitle}>Заметки</h2>
+            </header>
             {isEditing ? (
               <textarea
                 value={order.notes}
                 onChange={(e) => setOrder(prev => ({ ...prev, notes: e.target.value }))}
-                className="w-full p-1.5 sm:p-2 bg-white border rounded-md min-h-[100px]"
+                className={styles.input}
                 placeholder="Введите заметки..."
               />
             ) : (
               <p className="text-gray-700 text-sm">{order.notes}</p>
             )}
-          </div>
+          </section>
         )}
 
         {/* Даты */}
-        <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
-          <div className="space-y-3">
-            <div className="flex justify-between items-center pb-2 border-b">
-              <h2 className="text-lg font-medium text-gray-900">Даты</h2>
-              <span className="text-gray-500">{calculateDaysLeft()} дней</span>
+        <section className={styles.section}>
+          <header className={styles.headerWithFlex}>
+            <h2 className={styles.sectionTitle}>Даты</h2>
+            <span className="text-gray-500">{calculateDaysLeft()} дней</span>
+          </header>
+          <div className="grid grid-cols-2 gap-2 sm:gap-4">
+            <div>
+              <label className={styles.label}>Начало:</label>
+              {isEditing ? (
+                <input
+                  type="date"
+                  value={order.startDate}
+                  onChange={(e) => setOrder(prev => ({ ...prev, startDate: e.target.value }))}
+                  className={styles.inputWithMargin}
+                />
+              ) : (
+                <p className={styles.valueText}>{order.startDate}</p>
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:gap-4">
-              <div>
-                <div className="text-gray-500 text-xs">Начало:</div>
-                {isEditing ? (
-                  <input
-                    type="date"
-                    value={order.startDate}
-                    onChange={(e) => setOrder(prev => ({ ...prev, startDate: e.target.value }))}
-                    className="w-full p-1.5 sm:p-2 mt-0.5 sm:mt-1 bg-white border rounded-md"
-                  />
-                ) : (
-                  <div className="text-gray-900 py-1 sm:p-2 text-sm">{order.startDate}</div>
-                )}
-              </div>
-              <div>
-                <div className="text-gray-500 text-xs">Окончание:</div>
-                {isEditing ? (
-                  <input
-                    type="date"
-                    value={order.endDate}
-                    onChange={(e) => setOrder(prev => ({ ...prev, endDate: e.target.value }))}
-                    className="w-full p-1.5 sm:p-2 mt-0.5 sm:mt-1 bg-white border rounded-md"
-                  />
-                ) : (
-                  <div className="text-gray-900 py-1 sm:p-2 text-sm">{order.endDate}</div>
-                )}
-              </div>
+            <div>
+              <label className={styles.label}>Окончание:</label>
+              {isEditing ? (
+                <input
+                  type="date"
+                  value={order.endDate}
+                  onChange={(e) => setOrder(prev => ({ ...prev, endDate: e.target.value }))}
+                  className={styles.inputWithMargin}
+                />
+              ) : (
+                <p className={styles.valueText}>{order.endDate}</p>
+              )}
             </div>
           </div>
-        </div>
+        </section>
 
         {/* Фотографии */}
-        <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
-          <div className="pb-2 border-b mb-3">
-            <h2 className="text-lg font-medium text-gray-900">Фотографии</h2>
-          </div>
+        <section className={styles.section}>
+          <header className={styles.header}>
+            <h2 className={styles.sectionTitle}>Фотографии</h2>
+          </header>
           {isEditing ? (
-            <button className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-500">
+            <button className={styles.uploadButton}>
               <Camera size={24} className="mb-2" />
               <span>Загрузить фотографии</span>
             </button>
           ) : (
             order.photos.length === 0 && (
-              <div className="text-center text-gray-500 mt-4">
+              <p className="text-center text-gray-500 mt-4">
                 Нет фотографий
-              </div>
+              </p>
             )
           )}
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 };
