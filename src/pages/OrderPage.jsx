@@ -143,8 +143,8 @@ const OrderPage = () => {
 
   const totalExpenses = order.expenses.reduce((sum, exp) => sum + exp.amount, 0);
   const remaining = order.price - order.prepayment;
-  const profit = order.profit;
-  const profitPercentage = order.profitPercent;
+  const profit = order.price - totalExpenses;
+  const profitPercentage = order.price > 0 ? ((profit / order.price) * 100).toFixed(1) : 0;
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
@@ -198,7 +198,7 @@ const OrderPage = () => {
       <main className="flex-1 p-2 sm:p-4 space-y-4">
         {/* Информация */}
         <section className={styles.section}>
-          <header className={styles.header}>
+          <header className={styles.headerWithFlex}>
             <h2 className={styles.sectionTitle}>Информация</h2>
             {isEditing ? (
               <select
@@ -211,7 +211,7 @@ const OrderPage = () => {
                 ))}
               </select>
             ) : (
-              <span className={styles.statusBadge}>
+              <span className={`${styles.statusBadge} ${statusOptions[order.status]?.class}`}>
                 {statusOptions[order.status]?.text}
               </span>
             )}
@@ -267,7 +267,16 @@ const OrderPage = () => {
               <div className="space-y-2">
                 <div>
                   <div className={styles.label}>Стоимость:</div>
-                  <div className={styles.valueText}>{order.cost} ₽</div>
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      value={order.price}
+                      onChange={(e) => setOrder(prev => ({ ...prev, price: Number(e.target.value) }))}
+                      className={styles.input}
+                    />
+                  ) : (
+                    <div className={styles.valueText}>{order.price} ₽</div>
+                  )}
                 </div>
                 <div>
                   <div className={styles.label}>Себестоимость:</div>
@@ -282,7 +291,16 @@ const OrderPage = () => {
               <div className="space-y-2">
                 <div>
                   <div className={styles.label}>Предоплата:</div>
-                  <div className={styles.valueText}>{order.prepayment} ₽</div>
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      value={order.prepayment}
+                      onChange={(e) => setOrder(prev => ({ ...prev, prepayment: Number(e.target.value) }))}
+                      className={styles.input}
+                    />
+                  ) : (
+                    <div className={styles.valueText}>{order.prepayment} ₽</div>
+                  )}
                 </div>
                 <div>
                   <div className={styles.label}>Остаток:</div>
@@ -304,7 +322,7 @@ const OrderPage = () => {
             {isEditing && (
               <button
                 onClick={addExpense}
-                className={styles.actionButton}
+                className={`${styles.actionButton} bg-gray-900`}
               >
                 <Plus size={20} className="text-white" />
               </button>
