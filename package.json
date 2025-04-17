@@ -4,10 +4,14 @@
   "private": true,
   "type": "module",
   "proxy": "http://localhost:3001",
+  "engines": {
+    "node": ">=16.0.0"
+  },
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "autoprefixer": "^10.4.21",
     "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
     "express": "^4.21.2",
     "heic2any": "^0.0.4",
     "http-proxy-middleware": "^2.0.6",
@@ -23,13 +27,17 @@
     "uuid": "^11.1.0"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "node server.js",
+    "client": "react-scripts start",
     "server": "node server.js",
-    "dev": "concurrently \"npm run server\" \"npm run start\"",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
     "build": "react-scripts build",
+    "postinstall": "prisma generate",
+    "deploy": "prisma migrate deploy && npm run build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "db:reset": "prisma migrate reset --force",
     "db:seed": "node prisma/seed.js"

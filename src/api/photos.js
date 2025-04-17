@@ -5,6 +5,10 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import sharp from 'sharp';
+import dotenv from 'dotenv';
+
+// Загружаем переменные окружения, если это еще не сделано
+dotenv.config();
 
 // Получаем путь к текущему файлу и директории
 const __filename = fileURLToPath(import.meta.url);
@@ -15,6 +19,9 @@ const uploadsDir = path.join(path.dirname(__dirname), '..', 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
+
+// Максимальный размер файла из переменных окружения или по умолчанию 10MB
+const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE || 10485760);
 
 // Настройка хранилища для multer
 const storage = multer.diskStorage({
@@ -40,9 +47,38 @@ const fileFilter = (req, file, cb) => {
 // Настройка загрузчика с ограничением размера
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 15 * 1024 * 1024 }, // 15 МБ
+  limits: { fileSize: MAX_FILE_SIZE }, // Используем размер из переменной окружения
   fileFilter: fileFilter
 });
+
+// Функция для проверки размера директории uploads
+// Эта функция добавлена для возможного будущего использования
+const checkUploadsSize = async () => {
+  try {
+    let totalSize = 0;
+    const files = fs.readdirSync(uploadsDir);
+    
+    for (const file of files) {
+      const stats = fs.statSync(path.join(uploadsDir, file));
+      if (stats.isFile()) {
+        totalSize += stats.size;
+      }
+    }
+    
+    // Максимальный размер директории (например, 500MB)
+    const MAX_DIR_SIZE = 500 * 1024 * 1024;
+    
+    if (totalSize > MAX_DIR_SIZE) {
+      console.warn(`Внимание: размер директории uploads превышает ${MAX_DIR_SIZE / (1024 * 1024)}MB`);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Ошибка при проверке размера директории uploads:', error);
+    return true; // В случае ошибки продолжаем работу
+  }
+};
 
 // GET /api/orders/:orderId/photos
 export const getOrderPhotos = async (req, res) => {
@@ -74,6 +110,9 @@ export const uploadPhoto = [
   // Обработчик после загрузки файлов
   async (req, res) => {
     try {
+      // Проверка размера директории uploads (опционально)
+      // await checkUploadsSize(); 
+
       // Проверяем orderId
       const orderId = parseInt(req.params.orderId);
       
@@ -143,7 +182,7 @@ export const uploadPhoto = [
           uploadedPhotos.push(photo);
           
         } catch (imageProcessingError) {
-          console.error('Error processing image:', imageProcessingError);
+          console.error('Ошибка обработки изображения:', imageProcessingError);
           
           // Если произошла ошибка при обработке, используем оригинальный файл
           try {

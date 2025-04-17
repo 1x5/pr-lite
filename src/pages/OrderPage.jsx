@@ -192,26 +192,26 @@ const OrderPage = () => {
         const newOrderId = savedOrder.id;
         const uploadedPhotos = [];
         
-        // Последовательная загрузка фотографий
-        for (const photoObj of tempPhotos) {
-          const formData = new FormData();
-          formData.append('photo', photoObj.file);
+        // Создаем FormData для всех фотографий
+        const formData = new FormData();
+        tempPhotos.forEach(photoObj => {
+          formData.append('photos', photoObj.file);
+        });
+        
+        try {
+          const uploadResponse = await fetch(`/api/orders/${newOrderId}/photos`, {
+            method: 'POST',
+            body: formData,
+          });
           
-          try {
-            const uploadResponse = await fetch(`/api/orders/${newOrderId}/photos`, {
-              method: 'POST',
-              body: formData,
-            });
-            
-            if (uploadResponse.ok) {
-              const photoResult = await uploadResponse.json();
-              uploadedPhotos.push(photoResult);
-            } else {
-              console.error('Failed to upload photo after order creation');
-            }
-          } catch (photoError) {
-            console.error('Error uploading photo after order creation:', photoError);
+          if (uploadResponse.ok) {
+            const results = await uploadResponse.json();
+            uploadedPhotos.push(...results);
+          } else {
+            console.error('Failed to upload photos after order creation');
           }
+        } catch (photoError) {
+          console.error('Error uploading photos after order creation:', photoError);
         }
         
         // Добавляем загруженные фото к заказу
@@ -359,41 +359,63 @@ const OrderPage = () => {
 
   // Обработчик загрузки фотографий
   const handlePhotoUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+    const files = Array.from(event.target.files);
+    if (!files.length) return;
     
     // Сбрасываем ошибки
     setPhotoError(null);
     
-    // Проверка типа файла
-    if (!file.type.startsWith('image/')) {
-      setPhotoError('Разрешены только изображения');
-      return;
+    // Проверяем каждый файл
+    const validFiles = [];
+    const invalidFiles = [];
+    
+    for (const file of files) {
+      // Проверка типа файла
+      if (!file.type.startsWith('image/')) {
+        invalidFiles.push({ file, reason: 'Не изображение' });
+        continue;
+      }
+      
+      // Проверка размера файла (макс 10 МБ)
+      if (file.size > 10 * 1024 * 1024) {
+        invalidFiles.push({ file, reason: 'Превышен размер 10 МБ' });
+        continue;
+      }
+      
+      validFiles.push(file);
     }
     
-    // Проверка размера файла (макс 10 МБ)
-    if (file.size > 10 * 1024 * 1024) {
-      setPhotoError('Максимальный размер файла - 10 МБ');
-      return;
+    if (invalidFiles.length > 0) {
+      const errorMessages = invalidFiles.map(item => `${item.file.name} - ${item.reason}`);
+      setPhotoError(`Некоторые файлы не были загружены: ${errorMessages.join(', ')}`);
+      
+      if (validFiles.length === 0) {
+        event.target.value = '';
+        return;
+      }
     }
     
-    // Показываем предварительный просмотр
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setSelectedImage(e.target.result);
-    };
-    reader.readAsDataURL(file);
+    // Показываем предварительный просмотр первого файла
+    if (validFiles.length > 0) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setSelectedImage(e.target.result);
+      };
+      reader.readAsDataURL(validFiles[0]);
+    }
     
-    // Для нового заказа просто сохраняем файл в состоянии, отправим его после создания заказа
+    // Для нового заказа просто сохраняем файлы в состоянии, отправим их после создания заказа
     if (id === 'new') {
-      // Сохраняем файл для последующей отправки после создания заказа
-      setPhotos(prev => [...prev, {
-        id: `temp_${Date.now()}`,
+      // Сохраняем файлы для последующей отправки после создания заказа
+      const tempPhotos = validFiles.map(file => ({
+        id: `temp_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`,
         file,
         isTemp: true,
         url: URL.createObjectURL(file),
         originalName: file.name
-      }]);
+      }));
+      
+      setPhotos(prev => [...tempPhotos, ...prev]);
       
       // Сбрасываем input file и превью
       event.target.value = '';
@@ -401,12 +423,14 @@ const OrderPage = () => {
       return;
     }
     
-    // Для существующего заказа отправляем файл на сервер
+    // Для существующего заказа отправляем файлы на сервер
     setIsUploading(true);
     setUploadProgress(0);
     
     const formData = new FormData();
-    formData.append('photo', file);
+    validFiles.forEach(file => {
+      formData.append('photos', file);
+    });
     
     try {
       // Используем правильный URL с учетом прокси
@@ -420,15 +444,15 @@ const OrderPage = () => {
         throw new Error(errorData.error || errorData.details || 'Ошибка загрузки');
       }
       
-      const result = await response.json();
+      const results = await response.json();
       
-      // Добавляем загруженное фото к списку
-      setPhotos(prev => [result, ...prev]);
+      // Добавляем загруженные фото к списку
+      setPhotos(prev => [...results, ...prev]);
       
       // Сбрасываем состояние после успешной загрузки
       setSelectedImage(null);
     } catch (error) {
-      console.error('Error uploading photo:', error);
+      console.error('Error uploading photos:', error);
       setPhotoError(error.message || 'Не удалось загрузить фото');
     } finally {
       setIsUploading(false);
@@ -796,10 +820,11 @@ const OrderPage = () => {
                   onChange={handlePhotoUpload}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   disabled={isUploading}
+                  multiple
                 />
                 <div className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:border-gray-400 transition-colors">
                   <Camera size={24} className="mb-2" />
-                  <span>{isUploading ? 'Загрузка...' : 'Загрузить фотографии'}</span>
+                  <span>{isUploading ? 'Загрузка...' : 'Загрузить фотографии (до 10 шт.)'}</span>
                   {isUploading && (
                     <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
                       <div 
