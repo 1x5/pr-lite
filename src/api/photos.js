@@ -68,10 +68,10 @@ export const getOrderPhotos = async (req, res) => {
 
 // POST /api/orders/:orderId/photos
 export const uploadPhoto = [
-  // Middleware для загрузки одного файла с именем 'photo'
-  upload.single('photo'),
+  // Middleware для загрузки нескольких файлов с именем 'photos'
+  upload.array('photos', 10), // Максимум 10 файлов за один раз
   
-  // Обработчик после загрузки файла
+  // Обработчик после загрузки файлов
   async (req, res) => {
     try {
       // Проверяем orderId
@@ -87,70 +87,100 @@ export const uploadPhoto = [
       });
       
       if (!order) {
-        // Если файл был загружен, удаляем его
-        if (req.file) {
-          fs.unlinkSync(req.file.path);
+        // Если файлы были загружены, удаляем их
+        if (req.files && req.files.length > 0) {
+          req.files.forEach(file => {
+            try {
+              fs.unlinkSync(file.path);
+            } catch (err) {
+              console.error(`Ошибка при удалении файла ${file.path}:`, err);
+            }
+          });
         }
         return res.status(404).json({ error: 'Order not found', details: `No order found with ID ${orderId}` });
       }
       
-      if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded', details: 'Photo file is required' });
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ error: 'No files uploaded', details: 'Photo files are required' });
       }
       
-      let processedFilename, processedPath;
+      const uploadedPhotos = [];
       
-      try {
-        // Обрабатываем изображение с помощью sharp
-        // Изменяем размер до максимум 1200px по ширине или высоте с сохранением пропорций
-        processedFilename = `processed_${req.file.filename}`;
-        processedPath = path.join(uploadsDir, processedFilename);
+      // Обрабатываем каждый загруженный файл
+      for (const file of req.files) {
+        let processedFilename, processedPath;
         
-        await sharp(req.file.path)
-          .resize({
-            width: 1200,
-            height: 1200,
-            fit: sharp.fit.inside,
-            withoutEnlargement: true
-          })
-          .jpeg({ quality: 85 })
-          .toFile(processedPath);
-
-        // Удаляем оригинальный файл после обработки
-        fs.unlinkSync(req.file.path);
-      } catch (imageProcessingError) {
-        console.error('Error processing image:', imageProcessingError);
-        
-        // Если произошла ошибка при обработке, используем оригинальный файл
-        processedFilename = req.file.filename;
-        processedPath = req.file.path;
-      }
-      
-      // Создаем запись в базе данных
-      const photo = await prisma.photo.create({
-        data: {
-          filename: processedFilename,
-          originalName: req.file.originalname,
-          mimetype: req.file.mimetype,
-          size: fs.statSync(processedPath).size,
-          url: `/api/uploads/${processedFilename}`,
-          orderId: orderId
-        }
-      });
-      
-      res.status(201).json(photo);
-    } catch (error) {
-      // Если файл был загружен, удаляем его в случае ошибки
-      if (req.file) {
         try {
-          fs.unlinkSync(req.file.path);
-        } catch (err) {
-          console.error('Error removing file after failed upload:', err);
+          // Обрабатываем изображение с помощью sharp
+          processedFilename = `processed_${file.filename}`;
+          processedPath = path.join(uploadsDir, processedFilename);
+          
+          await sharp(file.path)
+            .resize({
+              width: 1200,
+              height: 1200,
+              fit: sharp.fit.inside,
+              withoutEnlargement: true
+            })
+            .jpeg({ quality: 85 })
+            .toFile(processedPath);
+
+          // Удаляем оригинальный файл после обработки
+          fs.unlinkSync(file.path);
+          
+          // Создаем запись в базе данных
+          const photo = await prisma.photo.create({
+            data: {
+              filename: processedFilename,
+              originalName: file.originalname,
+              mimetype: file.mimetype,
+              size: fs.statSync(processedPath).size,
+              url: `/api/uploads/${processedFilename}`,
+              orderId: orderId
+            }
+          });
+          
+          uploadedPhotos.push(photo);
+          
+        } catch (imageProcessingError) {
+          console.error('Error processing image:', imageProcessingError);
+          
+          // Если произошла ошибка при обработке, используем оригинальный файл
+          try {
+            const photo = await prisma.photo.create({
+              data: {
+                filename: file.filename,
+                originalName: file.originalname,
+                mimetype: file.mimetype,
+                size: file.size,
+                url: `/api/uploads/${file.filename}`,
+                orderId: orderId
+              }
+            });
+            
+            uploadedPhotos.push(photo);
+          } catch (dbError) {
+            console.error('Ошибка создания записи фото:', dbError);
+            // Продолжаем с другими файлами
+          }
         }
       }
       
-      console.error('Error uploading photo:', error);
-      res.status(500).json({ error: 'Failed to upload photo', details: error.message });
+      res.status(201).json(uploadedPhotos);
+    } catch (error) {
+      // Если файлы были загружены, удаляем их в случае общей ошибки
+      if (req.files && req.files.length > 0) {
+        req.files.forEach(file => {
+          try {
+            fs.unlinkSync(file.path);
+          } catch (err) {
+            console.error(`Ошибка при удалении файла ${file.path}:`, err);
+          }
+        });
+      }
+      
+      console.error('Ошибка загрузки фотографий:', error);
+      res.status(500).json({ error: 'Failed to upload photos', details: error.message });
     }
   }
 ];
