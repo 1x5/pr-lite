@@ -3,6 +3,8 @@ CREATE TABLE "Photo" (
     "id" SERIAL NOT NULL,
     "filename" TEXT NOT NULL,
     "originalName" TEXT NOT NULL,
+    "mimetype" TEXT NOT NULL,
+    "size" INTEGER NOT NULL,
     "url" TEXT NOT NULL,
     "orderId" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

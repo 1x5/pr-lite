@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Trash2, Plus, Link as LinkIcon, Camera, Save, X, Edit } from 'lucide-react';
+import { ArrowLeft, Trash2, Plus, Link as LinkIcon, Camera, Save, X, Edit, Download, Image } from 'lucide-react';
 
 const emptyOrder = (() => {
   const now = new Date();
@@ -23,6 +23,7 @@ const emptyOrder = (() => {
     prepayment: '',
     cost: '',
     expenses: [],
+    photos: [],
     profit: 0,
     profitPercent: 0,
     status: 'pending',
@@ -36,6 +37,11 @@ const OrderPage = () => {
   const [isEditing, setIsEditing] = useState(id === 'new');
   const [order, setOrder] = useState(id === 'new' ? {...emptyOrder} : null);
   const [animatingExpenseId, setAnimatingExpenseId] = useState(null);
+  const [photos, setPhotos] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [photoError, setPhotoError] = useState(null);
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -56,11 +62,27 @@ const OrderPage = () => {
         expenses: data.expenses || []
       };
       setOrder(formattedData);
+      
+      // Загружаем фотографии заказа
+      fetchOrderPhotos();
     } catch (error) {
       console.error('Error fetching order:', error);
       navigate('/');
     }
   }, [id, navigate]);
+
+  // Загрузка фотографий заказа
+  const fetchOrderPhotos = useCallback(async () => {
+    if (id === 'new') return;
+    
+    try {
+      const response = await fetch(`/api/orders/${id}/photos`);
+      const data = await response.json();
+      setPhotos(data);
+    } catch (error) {
+      console.error('Error fetching order photos:', error);
+    }
+  }, [id]);
 
   useEffect(() => {
     if (id === 'new') {
@@ -140,6 +162,7 @@ const OrderPage = () => {
           amount: parseFloat(exp.amount) || 0,
           link: exp.link || ''
         }))
+        // Не отправляем фотографии в JSON
       };
 
       console.log('Sending order data:', formattedOrder);
@@ -157,11 +180,43 @@ const OrderPage = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.details || 'Failed to save order');
+        throw new Error(errorData.details || errorData.error || 'Failed to save order');
       }
 
       const savedOrder = await response.json();
       console.log('Saved order:', savedOrder);
+      
+      // Если это был новый заказ, загружаем временные фотографии
+      const tempPhotos = photos.filter(photo => photo.isTemp);
+      if (id === 'new' && tempPhotos.length > 0) {
+        const newOrderId = savedOrder.id;
+        const uploadedPhotos = [];
+        
+        // Последовательная загрузка фотографий
+        for (const photoObj of tempPhotos) {
+          const formData = new FormData();
+          formData.append('photo', photoObj.file);
+          
+          try {
+            const uploadResponse = await fetch(`/api/orders/${newOrderId}/photos`, {
+              method: 'POST',
+              body: formData,
+            });
+            
+            if (uploadResponse.ok) {
+              const photoResult = await uploadResponse.json();
+              uploadedPhotos.push(photoResult);
+            } else {
+              console.error('Failed to upload photo after order creation');
+            }
+          } catch (photoError) {
+            console.error('Error uploading photo after order creation:', photoError);
+          }
+        }
+        
+        // Добавляем загруженные фото к заказу
+        savedOrder.photos = uploadedPhotos;
+      }
       
       // Форматируем даты перед обновлением состояния
       const formatDateForInput = (dateString) => {
@@ -300,6 +355,117 @@ const OrderPage = () => {
     if (!dateString) return '';
     const date = new Date(dateString);
     return date.toISOString().split('T')[0];
+  };
+
+  // Обработчик загрузки фотографий
+  const handlePhotoUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Сбрасываем ошибки
+    setPhotoError(null);
+    
+    // Проверка типа файла
+    if (!file.type.startsWith('image/')) {
+      setPhotoError('Разрешены только изображения');
+      return;
+    }
+    
+    // Проверка размера файла (макс 10 МБ)
+    if (file.size > 10 * 1024 * 1024) {
+      setPhotoError('Максимальный размер файла - 10 МБ');
+      return;
+    }
+    
+    // Показываем предварительный просмотр
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setSelectedImage(e.target.result);
+    };
+    reader.readAsDataURL(file);
+    
+    // Для нового заказа просто сохраняем файл в состоянии, отправим его после создания заказа
+    if (id === 'new') {
+      // Сохраняем файл для последующей отправки после создания заказа
+      setPhotos(prev => [...prev, {
+        id: `temp_${Date.now()}`,
+        file,
+        isTemp: true,
+        url: URL.createObjectURL(file),
+        originalName: file.name
+      }]);
+      
+      // Сбрасываем input file и превью
+      event.target.value = '';
+      setTimeout(() => setSelectedImage(null), 1500);
+      return;
+    }
+    
+    // Для существующего заказа отправляем файл на сервер
+    setIsUploading(true);
+    setUploadProgress(0);
+    
+    const formData = new FormData();
+    formData.append('photo', file);
+    
+    try {
+      // Используем правильный URL с учетом прокси
+      const response = await fetch(`/api/orders/${id}/photos`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.details || 'Ошибка загрузки');
+      }
+      
+      const result = await response.json();
+      
+      // Добавляем загруженное фото к списку
+      setPhotos(prev => [result, ...prev]);
+      
+      // Сбрасываем состояние после успешной загрузки
+      setSelectedImage(null);
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      setPhotoError(error.message || 'Не удалось загрузить фото');
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+      // Сбрасываем input file
+      event.target.value = '';
+    }
+  };
+  
+  // Обработчик удаления фотографии
+  const handleDeletePhoto = async (photoId) => {
+    // Для временных фото просто удаляем из локального состояния
+    if (typeof photoId === 'string' && photoId.startsWith('temp_')) {
+      setPhotos(photos.filter(photo => photo.id !== photoId));
+      return;
+    }
+    
+    if (!window.confirm('Вы уверены, что хотите удалить это фото?')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/photos/${photoId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.details || 'Ошибка удаления');
+      }
+      
+      // Удаляем фото из списка
+      setPhotos(photos.filter(photo => photo.id !== photoId));
+    } catch (error) {
+      console.error('Error deleting photo:', error);
+      alert('Не удалось удалить фото: ' + error.message);
+    }
   };
 
   if (!order) {
@@ -623,22 +789,90 @@ const OrderPage = () => {
           </div>
           {isEditing ? (
             <div className="space-y-4">
-              <button 
-                className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:border-gray-400 transition-colors"
-              >
-                <Camera size={24} className="mb-2" />
-                <span>Загрузить фотографии</span>
-              </button>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {/* Здесь будут отображаться загруженные фотографии */}
+              <div className="relative">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  disabled={isUploading}
+                />
+                <div className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:border-gray-400 transition-colors">
+                  <Camera size={24} className="mb-2" />
+                  <span>{isUploading ? 'Загрузка...' : 'Загрузить фотографии'}</span>
+                  {isUploading && (
+                    <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                      <div 
+                        className="bg-blue-600 h-2.5 rounded-full" 
+                        style={{ width: `${uploadProgress}%` }}
+                      ></div>
+                    </div>
+                  )}
+                  {photoError && (
+                    <p className="text-red-500 text-sm mt-2">{photoError}</p>
+                  )}
+                </div>
               </div>
+              
+              {selectedImage && (
+                <div className="relative p-2 border rounded-lg bg-white">
+                  <h3 className="text-sm font-medium mb-2">Предпросмотр</h3>
+                  <img 
+                    src={selectedImage} 
+                    alt="Предпросмотр" 
+                    className="w-full h-auto rounded"
+                  />
+                </div>
+              )}
+              
+              {photos.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {photos.map(photo => (
+                    <div key={photo.id} className="relative group">
+                      <img 
+                        src={photo.url} 
+                        alt={photo.originalName} 
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
+                      <button
+                        onClick={() => handleDeletePhoto(photo.id)}
+                        className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-gray-500 py-2">
+                  Нет загруженных фотографий
+                </p>
+              )}
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              <div className="text-center text-gray-500 col-span-full py-4">
+            photos.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {photos.map(photo => (
+                  <a 
+                    key={photo.id} 
+                    href={photo.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
+                    <img 
+                      src={photo.url} 
+                      alt={photo.originalName} 
+                      className="w-full h-32 object-cover rounded-lg hover:opacity-90 transition-opacity"
+                    />
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center text-gray-500 py-4">
                 Нет фотографий
               </div>
-            </div>
+            )
           )}
         </div>
       </div>

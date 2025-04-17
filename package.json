@@ -5,7 +5,7 @@
   "type": "module",
   "proxy": "http://localhost:3001",
   "dependencies": {
-    "@prisma/client": "^5.10.2",
+    "@prisma/client": "^5.22.0",
     "autoprefixer": "^10.4.21",
     "cors": "^2.8.5",
     "express": "^4.21.2",
@@ -28,7 +28,11 @@
     "dev": "concurrently \"npm run server\" \"npm run start\"",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "db:reset": "prisma migrate reset --force",
+    "db:seed": "node prisma/seed.js"
   },
   "eslintConfig": {
     "extends": [
@@ -50,7 +54,7 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
-    "prisma": "^5.10.2",
+    "prisma": "^5.22.0",
     "react-scripts": "5.0.1"
   }
 }

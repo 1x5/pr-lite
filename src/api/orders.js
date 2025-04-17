@@ -15,7 +15,7 @@ export const getOrders = async (req, res) => {
     res.json(orders);
   } catch (error) {
     console.error('Error fetching orders:', error);
-    res.status(500).json({ error: 'Failed to fetch orders' });
+    res.status(500).json({ error: 'Failed to fetch orders', details: error.message });
   }
 };
 
@@ -35,7 +35,8 @@ export const getOrder = async (req, res) => {
     
     res.json(order);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch order' });
+    console.error('Error fetching order:', error);
+    res.status(500).json({ error: 'Failed to fetch order', details: error.message });
   }
 };
 
@@ -51,10 +52,12 @@ export const createOrder = async (req, res) => {
       endDate: orderData.endDate ? new Date(orderData.endDate) : null,
     };
 
-    // Добавляем расходы только если они есть
-    if (expenses && expenses.length > 0) {
+    // Добавляем расходы только если они есть и это не пустые объекты
+    const filteredExpenses = expenses?.filter(exp => exp.name || exp.amount) || [];
+    
+    if (filteredExpenses.length > 0) {
       formattedOrderData.expenses = {
-        create: expenses.map(exp => ({
+        create: filteredExpenses.map(exp => ({
           name: exp.name || '',
           amount: parseFloat(exp.amount) || 0,
           link: exp.link || ''
@@ -87,22 +90,41 @@ export const updateOrder = async (req, res) => {
       ...orderData,
       startDate: orderData.startDate ? new Date(orderData.startDate) : null,
       endDate: orderData.endDate ? new Date(orderData.endDate) : null,
-      expenses: {
-        deleteMany: {}, // Удаляем все существующие расходы
-        create: expenses.map(exp => ({
-          name: exp.name || '',
-          amount: parseFloat(exp.amount) || 0,
-          link: exp.link || ''
-        }))
-      }
     };
 
-    const order = await prisma.order.update({
-      where: { id: parseInt(id) },
-      data: formattedOrderData,
-      include: {
-        expenses: true
+    // Фильтруем пустые расходы
+    const filteredExpenses = expenses?.filter(exp => exp.name || exp.amount) || [];
+
+    // Обновляем заказ
+    const order = await prisma.$transaction(async (tx) => {
+      // 1. Удаляем все существующие расходы
+      await tx.expense.deleteMany({
+        where: { orderId: parseInt(id) }
+      });
+
+      // 2. Обновляем основную информацию о заказе
+      const updatedOrder = await tx.order.update({
+        where: { id: parseInt(id) },
+        data: formattedOrderData
+      });
+
+      // 3. Создаем новые расходы, если они есть
+      if (filteredExpenses.length > 0) {
+        await tx.expense.createMany({
+          data: filteredExpenses.map(exp => ({
+            name: exp.name || '',
+            amount: parseFloat(exp.amount) || 0,
+            link: exp.link || '',
+            orderId: parseInt(id)
+          }))
+        });
       }
+
+      // 4. Получаем обновленный заказ со всеми расходами
+      return tx.order.findUnique({
+        where: { id: parseInt(id) },
+        include: { expenses: true }
+      });
     });
 
     res.json(order);
@@ -115,16 +137,14 @@ export const updateOrder = async (req, res) => {
 // DELETE /api/orders/:id
 export const deleteOrder = async (req, res) => {
   try {
-    await prisma.expense.deleteMany({
-      where: { orderId: parseInt(req.params.id) },
-    });
-    
+    // Cascade deletion: когда заказ удаляется, все связанные расходы удаляются автоматически
     await prisma.order.delete({
       where: { id: parseInt(req.params.id) },
     });
     
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete order' });
+    console.error('Error deleting order:', error);
+    res.status(500).json({ error: 'Failed to delete order', details: error.message });
   }
 }; 

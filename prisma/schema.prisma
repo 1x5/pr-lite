@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -28,6 +25,7 @@ model Order {
   status      String   @default("pending")
   notes       String?
   expenses    Expense[]
+  photos      Photo[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -38,7 +36,20 @@ model Expense {
   amount    Float
   link      String?
   orderId   Int
-  order     Order    @relation(fields: [orderId], references: [id])
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model Photo {
+  id          Int      @id @default(autoincrement())
+  filename    String   // Имя файла в файловой системе
+  originalName String  // Оригинальное имя файла
+  mimetype    String   // MIME-тип файла
+  size        Int      // Размер файла в байтах
+  url         String   // URL для доступа к файлу
+  orderId     Int
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+} 
