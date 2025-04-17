@@ -1,33 +1,74 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Trash2, Plus, Link as LinkIcon, Camera, Save, X, Edit } from 'lucide-react';
+
+const emptyOrder = (() => {
+  const now = new Date();
+  const day = now.getDate().toString().padStart(2, '0');
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+  const year = now.getFullYear().toString().slice(-2);
+  const days = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+  const dayName = days[now.getDay()];
+
+  // Дата окончания через 7 дней
+  const endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  return {
+    name: `Заявка от ${day}.${month}.${year} (${dayName})`,
+    phone: '',
+    messenger: 'WhatsApp',
+    startDate: now.toISOString().split('T')[0],
+    endDate: endDate.toISOString().split('T')[0],
+    price: '',
+    prepayment: '',
+    cost: '',
+    expenses: [],
+    profit: 0,
+    profitPercent: 0,
+    status: 'pending',
+    notes: ''
+  };
+})();
 
 const OrderPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [isEditing, setIsEditing] = useState(false);
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  const [order, setOrder] = useState({
-    id: parseInt(id),
-    name: 'Кухонный гарнитур',
-    phone: '',
-    messenger: 'WhatsApp',
-    startDate: '2025-04-10',
-    endDate: '2025-04-25',
-    price: 85000,
-    prepayment: 0,
-    cost: 42000,
-    expenses: [
-      { id: 1, name: 'Материалы', amount: 30000, link: '' },
-      { id: 2, name: 'Столешница', amount: 12000, link: '' }
-    ],
-    profit: 43000,
-    profitPercent: 50.6,
-    status: 'pending',
-    notes: 'Кухня угловая, со встроенной техникой.',
-    photos: []
-  });
+  const [isEditing, setIsEditing] = useState(id === 'new');
+  const [order, setOrder] = useState(id === 'new' ? {...emptyOrder} : null);
   const [animatingExpenseId, setAnimatingExpenseId] = useState(null);
+
+  const fetchOrder = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/orders/${id}`);
+      const data = await response.json();
+      
+      // Форматируем даты в формат yyyy-MM-dd для input type="date"
+      const formatDateForInput = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toISOString().split('T')[0];
+      };
+
+      const formattedData = {
+        ...data,
+        startDate: formatDateForInput(data.startDate),
+        endDate: formatDateForInput(data.endDate),
+        expenses: data.expenses || []
+      };
+      setOrder(formattedData);
+    } catch (error) {
+      console.error('Error fetching order:', error);
+      navigate('/');
+    }
+  }, [id, navigate]);
+
+  useEffect(() => {
+    if (id === 'new') {
+      setOrder({...emptyOrder});
+    } else {
+      fetchOrder();
+    }
+  }, [id, fetchOrder]);
 
   const statusOptions = {
     pending: { text: 'Ожидает', class: 'bg-yellow-400' },
@@ -37,11 +78,10 @@ const OrderPage = () => {
 
   const handleStatusChange = (status) => {
     setOrder(prev => ({ ...prev, status }));
-    setShowStatusDropdown(false);
   };
 
   const handleMessengerClick = () => {
-    if (!order.phone || !order.messenger) return;
+    if (!order?.phone || !order?.messenger) return;
     
     const phone = order.phone.replace(/\D/g, '');
     let url = '';
@@ -73,59 +113,200 @@ const OrderPage = () => {
     }
   };
 
-  const handleSave = () => {
-    // Здесь будет логика сохранения
-    setIsEditing(false);
+  const handleSave = async () => {
+    try {
+      // Валидация обязательных полей
+      if (!order.name) {
+        alert('Название заказа обязательно');
+        return;
+      }
+
+      // Форматируем данные перед отправкой
+      const formattedOrder = {
+        name: order.name,
+        phone: order.phone || '',
+        messenger: order.messenger || 'WhatsApp',
+        startDate: order.startDate ? new Date(order.startDate).toISOString() : null,
+        endDate: order.endDate ? new Date(order.endDate).toISOString() : null,
+        price: parseFloat(order.price) || 0,
+        prepayment: parseFloat(order.prepayment) || 0,
+        cost: parseFloat(order.cost) || 0,
+        profit: parseFloat(order.profit) || 0,
+        profitPercent: parseFloat(order.profitPercent) || 0,
+        status: order.status || 'pending',
+        notes: order.notes || '',
+        expenses: (order.expenses || []).map(exp => ({
+          name: exp.name || '',
+          amount: parseFloat(exp.amount) || 0,
+          link: exp.link || ''
+        }))
+      };
+
+      console.log('Sending order data:', formattedOrder);
+      
+      const method = id === 'new' ? 'POST' : 'PUT';
+      const url = id === 'new' ? '/api/orders' : `/api/orders/${id}`;
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formattedOrder),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || 'Failed to save order');
+      }
+
+      const savedOrder = await response.json();
+      console.log('Saved order:', savedOrder);
+      
+      // Форматируем даты перед обновлением состояния
+      const formatDateForInput = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toISOString().split('T')[0];
+      };
+
+      const orderWithFormattedDates = {
+        ...savedOrder,
+        startDate: formatDateForInput(savedOrder.startDate),
+        endDate: formatDateForInput(savedOrder.endDate)
+      };
+      
+      setOrder(orderWithFormattedDates);
+      setIsEditing(false);
+      
+      if (id === 'new') {
+        navigate(`/order/${savedOrder.id}`);
+      }
+    } catch (error) {
+      console.error('Error saving order:', error);
+      alert(`Не удалось сохранить заказ: ${error.message}`);
+    }
   };
 
   const handleCancel = () => {
-    setIsEditing(false);
+    if (id === 'new') {
+      navigate('/');
+    } else {
+      setIsEditing(false);
+    }
   };
 
   const handleEdit = () => {
     setIsEditing(true);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (window.confirm('Вы уверены, что хотите удалить этот заказ?')) {
-      navigate('/');
+      try {
+        await fetch(`/api/orders/${id}`, { method: 'DELETE' });
+        navigate('/');
+      } catch (error) {
+        console.error('Error deleting order:', error);
+        alert('Не удалось удалить заказ');
+      }
     }
   };
 
   const addExpense = () => {
     setOrder(prev => ({
       ...prev,
-      expenses: [...prev.expenses, { id: Date.now(), name: '', amount: 0, link: '' }]
+      expenses: [...(prev.expenses || []), { id: Date.now(), name: '', amount: '', link: '' }]
     }));
   };
 
   const updateExpense = (id, field, value) => {
-    setOrder(prev => ({
-      ...prev,
-      expenses: prev.expenses.map(exp => 
-        exp.id === id ? { ...exp, [field]: value } : exp
-      )
-    }));
+    if (id === 'new') {
+      // Если это пустая строка, создаем новый расход
+      const newExpense = { id: Date.now(), name: '', amount: '', link: '' };
+      newExpense[field] = value;
+      setOrder(prev => ({
+        ...prev,
+        expenses: [...(prev.expenses || []), newExpense]
+      }));
+    } else {
+      setOrder(prev => ({
+        ...prev,
+        expenses: (prev.expenses || []).map(exp => 
+          exp.id === id ? { ...exp, [field]: value } : exp
+        )
+      }));
+    }
   };
 
   const removeExpense = (id) => {
+    if (id === 'new') return; // Не удаляем пустую строку
     setOrder(prev => ({
       ...prev,
-      expenses: prev.expenses.filter(exp => exp.id !== id)
+      expenses: (prev.expenses || []).filter(exp => exp.id !== id)
     }));
   };
 
   const calculateDaysLeft = () => {
+    if (!order?.startDate || !order?.endDate) return 0;
     const start = new Date(order.startDate);
     const end = new Date(order.endDate);
     const diffTime = Math.abs(end - start);
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
-  const totalExpenses = order.expenses.reduce((sum, exp) => sum + exp.amount, 0);
-  const remaining = order.price - order.prepayment;
-  const profit = order.profit;
-  const profitPercentage = order.profitPercent;
+  const expenses = useMemo(() => {
+    return order?.expenses || [];
+  }, [order?.expenses]);
+
+  const displayExpenses = useMemo(() => {
+    return expenses.length === 0 ? [{ id: 'new', name: '', amount: '' }] : expenses;
+  }, [expenses]);
+
+  const totalExpenses = expenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
+  const remaining = (order?.price || 0) - (order?.prepayment || 0);
+  const profit = (order?.price || 0) - totalExpenses;
+  const profitPercent = order?.price > 0 ? Math.round((profit / order.price) * 100) : 0;
+
+  // Обновляем profit и profitPercent при изменении расходов или цены
+  useEffect(() => {
+    if (order?.price !== undefined) {
+      const price = parseFloat(order.price) || 0;
+      const currentExpenses = expenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
+      const newProfit = price - currentExpenses;
+      const newProfitPercent = price > 0 ? Math.round((newProfit / price) * 100) : 0;
+
+      // Проверяем, изменились ли значения перед обновлением
+      if (newProfit !== order.profit || newProfitPercent !== order.profitPercent) {
+        setOrder(prev => ({
+          ...prev,
+          profit: newProfit,
+          profitPercent: newProfitPercent
+        }));
+      }
+    }
+  }, [expenses, order?.price, order?.profit, order?.profitPercent]);  // Добавляем зависимости
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+    const day = localDate.getDate().toString().padStart(2, '0');
+    const month = (localDate.getMonth() + 1).toString().padStart(2, '0');
+    const year = localDate.getFullYear();
+    return `${day}.${month}.${year}`;
+  };
+
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toISOString().split('T')[0];
+  };
+
+  if (!order) {
+    return <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+    </div>;
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
@@ -249,7 +430,17 @@ const OrderPage = () => {
               <div className="space-y-2">
                 <div>
                   <div className="text-gray-500 text-sm">Стоимость:</div>
-                  <div className="text-gray-900 py-1 sm:p-2">{order.cost} ₽</div>
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      value={order.price}
+                      onChange={(e) => setOrder(prev => ({ ...prev, price: e.target.value }))}
+                      className="w-full p-1.5 sm:p-2 mt-0.5 sm:mt-1 bg-white border rounded-md"
+                      placeholder="0"
+                    />
+                  ) : (
+                    <div className="text-gray-900 py-1 sm:p-2">{parseFloat(order.price) || 0} ₽</div>
+                  )}
                 </div>
                 <div>
                   <div className="text-gray-500 text-sm">Себестоимость:</div>
@@ -264,7 +455,17 @@ const OrderPage = () => {
               <div className="space-y-2">
                 <div>
                   <div className="text-gray-500 text-sm">Предоплата:</div>
-                  <div className="text-gray-900 py-1 sm:p-2">{order.prepayment} ₽</div>
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      value={order.prepayment}
+                      onChange={(e) => setOrder(prev => ({ ...prev, prepayment: e.target.value }))}
+                      className="w-full p-1.5 sm:p-2 mt-0.5 sm:mt-1 bg-white border rounded-md"
+                      placeholder="0"
+                    />
+                  ) : (
+                    <div className="text-gray-900 py-1 sm:p-2">{parseFloat(order.prepayment) || 0} ₽</div>
+                  )}
                 </div>
                 <div>
                   <div className="text-gray-500 text-sm">Остаток:</div>
@@ -272,7 +473,7 @@ const OrderPage = () => {
                 </div>
                 <div>
                   <div className="text-gray-500 text-sm">Процент:</div>
-                  <div className="text-gray-900 py-1 sm:p-2">{profitPercentage}%</div>
+                  <div className="text-gray-900 py-1 sm:p-2">{profitPercent}%</div>
                 </div>
               </div>
             </div>
@@ -293,19 +494,19 @@ const OrderPage = () => {
                 </button>
               )}
             </div>
-            {order.expenses.map(expense => (
+            {displayExpenses.map(expense => (
               <div key={expense.id} className="flex items-center gap-2">
                 {isEditing ? (
                   <>
                     <input
                       type="text"
-                      value={expense.name}
+                      value={expense.name || ''}
                       onChange={(e) => updateExpense(expense.id, 'name', e.target.value)}
                       className="flex-1 p-1.5 sm:p-2 bg-white border rounded-md"
                       placeholder="Название"
                     />
                     <button 
-                      className="p-2 hover:text-blue-600 transition-transform"
+                      className="p-1.5 hover:text-blue-600 transition-transform"
                       onClick={() => handleLinkPaste(expense.id)}
                     >
                       <LinkIcon 
@@ -317,16 +518,19 @@ const OrderPage = () => {
                     </button>
                     <input
                       type="number"
-                      value={expense.amount}
-                      onChange={(e) => updateExpense(expense.id, 'amount', Number(e.target.value))}
+                      value={expense.amount || ''}
+                      onChange={(e) => updateExpense(expense.id, 'amount', e.target.value)}
                       className="w-16 p-1.5 sm:p-2 bg-white border rounded-md"
+                      placeholder="0"
                     />
-                    <button
-                      onClick={() => removeExpense(expense.id)}
-                      className="p-1 hover:text-red-700"
-                    >
-                      <Trash2 size={18} className="text-red-500" />
-                    </button>
+                    {expense.id !== 'new' && (
+                      <button
+                        onClick={() => removeExpense(expense.id)}
+                        className="p-1.5 hover:text-red-700"
+                      >
+                        <Trash2 size={18} className="text-red-500" />
+                      </button>
+                    )}
                   </>
                 ) : (
                   <>
@@ -338,16 +542,16 @@ const OrderPage = () => {
                           rel="noopener noreferrer" 
                           className="text-gray-900 hover:underline cursor-pointer"
                         >
-                          {expense.name}
+                          {expense.name || ''}
                         </a>
                       ) : (
-                        <span className="text-gray-900">{expense.name}</span>
+                        <span className="text-gray-900">{expense.name || ''}</span>
                       )}
                       {expense.link && (
                         <LinkIcon size={16} className="text-gray-400" />
                       )}
                     </div>
-                    <span className="text-gray-900">{expense.amount} ₽</span>
+                    <span className="text-gray-900">{expense.amount || 0} ₽</span>
                   </>
                 )}
               </div>
@@ -387,12 +591,12 @@ const OrderPage = () => {
                 {isEditing ? (
                   <input
                     type="date"
-                    value={order.startDate}
+                    value={formatDateForInput(order.startDate)}
                     onChange={(e) => setOrder(prev => ({ ...prev, startDate: e.target.value }))}
-                    className="w-full p-1.5 sm:p-2 mt-0.5 sm:mt-1 bg-white border rounded-md"
+                    className="w-full p-1.5 sm:p-2 bg-white border rounded-md"
                   />
                 ) : (
-                  <div className="text-gray-900 py-1 sm:p-2">{order.startDate}</div>
+                  <div className="text-gray-900 py-1 sm:p-2">{formatDate(order.startDate)}</div>
                 )}
               </div>
               <div>
@@ -400,12 +604,12 @@ const OrderPage = () => {
                 {isEditing ? (
                   <input
                     type="date"
-                    value={order.endDate}
+                    value={formatDateForInput(order.endDate)}
                     onChange={(e) => setOrder(prev => ({ ...prev, endDate: e.target.value }))}
-                    className="w-full p-1.5 sm:p-2 mt-0.5 sm:mt-1 bg-white border rounded-md"
+                    className="w-full p-1.5 sm:p-2 bg-white border rounded-md"
                   />
                 ) : (
-                  <div className="text-gray-900 py-1 sm:p-2">{order.endDate}</div>
+                  <div className="text-gray-900 py-1 sm:p-2">{formatDate(order.endDate)}</div>
                 )}
               </div>
             </div>
@@ -418,16 +622,23 @@ const OrderPage = () => {
             <h2 className="text-lg font-medium text-gray-900">Фотографии</h2>
           </div>
           {isEditing ? (
-            <button className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-500">
-              <Camera size={24} className="mb-2" />
-              <span>Загрузить фотографии</span>
-            </button>
+            <div className="space-y-4">
+              <button 
+                className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:border-gray-400 transition-colors"
+              >
+                <Camera size={24} className="mb-2" />
+                <span>Загрузить фотографии</span>
+              </button>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {/* Здесь будут отображаться загруженные фотографии */}
+              </div>
+            </div>
           ) : (
-            order.photos.length === 0 && (
-              <div className="text-center text-gray-500 mt-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              <div className="text-center text-gray-500 col-span-full py-4">
                 Нет фотографий
               </div>
-            )
+            </div>
           )}
         </div>
       </div>
