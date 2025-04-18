@@ -29,7 +29,10 @@ const ipRestriction = (req, res, next) => {
   
   // Список разрешенных IP-адресов
   const allowedIps = [
-    '188.243.182.233', // VPN IP
+    '188.243.182.233', // IP компьютера без VPN
+    '104.28.249.137',  // IP компьютера с VPN
+    '104.28.217.138',  // IP телефона 1 с VPN
+    '104.28.249.137',  // IP телефона 2 с VPN
     '192.168.3.42',    // локальная сеть
     '192.168.3.83',    // локальная сеть
     '127.0.0.1',       // localhost
@@ -37,8 +40,19 @@ const ipRestriction = (req, res, next) => {
     '::ffff:127.0.0.1' // localhost IPv4 mapped в IPv6
   ];
   
-  // Проверяем, разрешен ли IP
-  if (allowedIps.some(ip => clientIp.includes(ip))) {
+  // Улучшенная проверка IP - проверяем точное соответствие
+  // или наличие IP в начале списка, если пришел список через запятую
+  const isAllowed = allowedIps.some(ip => {
+    if (clientIp === ip) return true;
+    if (clientIp.includes(',')) {
+      // Если пришел список IP, проверяем первый IP (реальный клиент)
+      const firstIp = clientIp.split(',')[0].trim();
+      return firstIp === ip;
+    }
+    return false;
+  });
+  
+  if (isAllowed) {
     next(); // Разрешаем доступ
   } else {
     // Запрещаем доступ
