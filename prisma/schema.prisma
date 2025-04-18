@@ -43,11 +43,10 @@ model Expense {
 
 model Photo {
   id          Int      @id @default(autoincrement())
-  filename    String   // Имя файла в файловой системе
+  data        Bytes    // Содержимое файла в бинарном формате
   originalName String  // Оригинальное имя файла
   mimetype    String   // MIME-тип файла
   size        Int      // Размер файла в байтах
-  url         String   // URL для доступа к файлу
   orderId     Int
   order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())

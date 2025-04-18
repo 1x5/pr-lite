@@ -121,17 +121,40 @@ const OrderPage = () => {
 
   const handleLinkPaste = async (expenseId) => {
     try {
-      const clipboardText = await navigator.clipboard.readText();
-      setAnimatingExpenseId(expenseId);
-      setOrder(prev => ({
-        ...prev,
-        expenses: prev.expenses.map(exp => 
-          exp.id === expenseId ? { ...exp, link: clipboardText } : exp
-        )
-      }));
-      setTimeout(() => setAnimatingExpenseId(null), 500);
+      // Try to use navigator.clipboard API (works on iOS, macOS, some Android browsers)
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        try {
+          const clipboardText = await navigator.clipboard.readText();
+          setAnimatingExpenseId(expenseId);
+          setOrder(prev => ({
+            ...prev,
+            expenses: prev.expenses.map(exp => 
+              exp.id === expenseId ? { ...exp, link: clipboardText } : exp
+            )
+          }));
+          setTimeout(() => setAnimatingExpenseId(null), 500);
+          return;
+        } catch (clipboardErr) {
+          console.error('Failed to read clipboard with API:', clipboardErr);
+          // Fall through to manual input prompt
+        }
+      }
+      
+      // Fallback for Android or when clipboard API fails
+      const manualInput = prompt('Вставьте ссылку вручную:', '');
+      if (manualInput) {
+        setAnimatingExpenseId(expenseId);
+        setOrder(prev => ({
+          ...prev,
+          expenses: prev.expenses.map(exp => 
+            exp.id === expenseId ? { ...exp, link: manualInput } : exp
+          )
+        }));
+        setTimeout(() => setAnimatingExpenseId(null), 500);
+      }
     } catch (err) {
-      console.error('Failed to read clipboard:', err);
+      console.error('Failed to handle paste operation:', err);
+      alert('Не удалось вставить ссылку. Попробуйте ввести ее вручную.');
     }
   };
 

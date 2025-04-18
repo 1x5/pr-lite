@@ -28,7 +28,7 @@
   },
   "scripts": {
     "start": "node server.js",
-    "client": "react-scripts start",
+    "client": "HOST=0.0.0.0 react-scripts start",
     "server": "node server.js",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "build": "react-scripts build",

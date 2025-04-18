@@ -1,6 +1,6 @@
 import express from 'express';
 import { getOrders, getOrder, createOrder, updateOrder, deleteOrder } from './src/api/orders.js';
-import { getOrderPhotos, uploadPhoto, deletePhoto } from './src/api/photos.js';
+import { getOrderPhotos, uploadPhoto, deletePhoto, getPhotoContent } from './src/api/photos.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
@@ -17,7 +17,7 @@ app.use(express.json());
 
 // Настройка CORS
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: '*', // Разрешаем запросы с любого хоста
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Origin', 'X-Requested-With', 'Accept']
 }));
@@ -36,16 +36,6 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
-// Создание директории uploads, если она не существует
-import fs from 'fs';
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// Статические файлы для загруженных фотографий
-app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
-
 // API routes для заказов
 app.get('/api/orders', getOrders);
 app.get('/api/orders/:id', getOrder);
@@ -57,6 +47,7 @@ app.delete('/api/orders/:id', deleteOrder);
 app.get('/api/orders/:orderId/photos', getOrderPhotos);
 app.post('/api/orders/:orderId/photos', uploadPhoto);
 app.delete('/api/photos/:photoId', deletePhoto);
+app.get('/api/photos/:photoId/content', getPhotoContent);
 
 // Обработка ошибок при загрузке файлов
 app.use((err, req, res, next) => {
@@ -86,7 +77,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 }); 
