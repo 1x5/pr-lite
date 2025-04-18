@@ -773,7 +773,7 @@ const OrderPage = () => {
         </div>
 
         {/* Заметки */}
-        {(!isEditing && !order.notes) ? null : (
+        {(!isEditing && (!order.notes || order.notes.trim() === '')) ? null : (
           <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
             <div className="pb-2 border-b mb-3">
               <h2 className="text-lg font-medium text-gray-900">Заметки</h2>
