@@ -42,6 +42,7 @@ const OrderPage = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedImage, setSelectedImage] = useState(null);
   const [photoError, setPhotoError] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -166,6 +167,9 @@ const OrderPage = () => {
         return;
       }
 
+      // Показываем спиннер загрузки
+      setIsSaving(true);
+
       // Форматируем данные перед отправкой
       const formattedOrder = {
         name: order.name,
@@ -263,6 +267,9 @@ const OrderPage = () => {
     } catch (error) {
       console.error('Error saving order:', error);
       alert(`Не удалось сохранить заказ: ${error.message}`);
+    } finally {
+      // Скрываем спиннер загрузки
+      setIsSaving(false);
     }
   };
 
@@ -523,6 +530,12 @@ const OrderPage = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
+      {isSaving && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+        </div>
+      )}
+      
       {/* Шапка */}
       <div className="px-2 sm:px-4 py-3 bg-white flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -540,12 +553,14 @@ const OrderPage = () => {
               <button 
                 onClick={handleCancel}
                 className="w-10 h-10 flex items-center justify-center bg-red-500 rounded-full"
+                disabled={isSaving}
               >
                 <X size={20} className="text-white" />
               </button>
               <button 
                 onClick={handleSave}
                 className="w-10 h-10 flex items-center justify-center bg-green-500 rounded-full"
+                disabled={isSaving}
               >
                 <Save size={20} className="text-white" />
               </button>
@@ -842,13 +857,22 @@ const OrderPage = () => {
                   accept="image/*"
                   onChange={handlePhotoUpload}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  disabled={isUploading}
+                  disabled={isUploading || isSaving}
                   multiple
                 />
                 <div className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:border-gray-400 transition-colors">
-                  <Camera size={24} className="mb-2" />
-                  <span>{isUploading ? 'Загрузка...' : 'Загрузить фотографии (до 10 шт.)'}</span>
-                  {isUploading && (
+                  {isUploading ? (
+                    <div className="flex flex-col items-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mb-2"></div>
+                      <span>Загрузка...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <Camera size={24} className="mb-2" />
+                      <span>Загрузить фотографии (до 10 шт.)</span>
+                    </>
+                  )}
+                  {isUploading && uploadProgress > 0 && (
                     <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
                       <div 
                         className="bg-blue-600 h-2.5 rounded-full" 
