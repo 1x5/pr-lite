@@ -22,6 +22,34 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Origin', 'X-Requested-With', 'Accept']
 }));
 
+// Middleware для проверки IP-адреса
+const ipRestriction = (req, res, next) => {
+  // Получаем IP клиента (с учетом прокси)
+  const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  
+  // Список разрешенных IP-адресов
+  const allowedIps = [
+    '188.243.182.233', // VPN IP
+    '192.168.3.42',    // локальная сеть
+    '192.168.3.83',    // локальная сеть
+    '127.0.0.1',       // localhost
+    '::1',             // localhost IPv6
+    '::ffff:127.0.0.1' // localhost IPv4 mapped в IPv6
+  ];
+  
+  // Проверяем, разрешен ли IP
+  if (allowedIps.some(ip => clientIp.includes(ip))) {
+    next(); // Разрешаем доступ
+  } else {
+    // Запрещаем доступ
+    console.log(`Доступ запрещен для IP: ${clientIp}`);
+    res.status(403).send('Доступ запрещен');
+  }
+};
+
+// Применяем middleware для ограничения доступа
+app.use(ipRestriction);
+
 // Логирование запросов только в режиме разработки
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, res, next) => {
