@@ -27,7 +27,7 @@ const ipRestriction = (req, res, next) => {
   // Получаем IP клиента (с учетом прокси)
   const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   
-  // Список разрешенных IP-адресов
+  // Список разрешенных IP-адресов и префиксов
   const allowedIps = [
     '188.243.182.233', // IP компьютера без VPN
     '192.168.3.42',    // локальная сеть
@@ -37,25 +37,33 @@ const ipRestriction = (req, res, next) => {
     '::ffff:127.0.0.1' // localhost IPv4 mapped в IPv6
   ];
   
-  // Улучшенная проверка IP - проверяем точное соответствие
-  // или наличие IP в начале списка, если пришел список через запятую
-  const isAllowed = allowedIps.some(ip => {
-    if (clientIp === ip) return true;
-    if (clientIp.includes(',')) {
-      // Если пришел список IP, проверяем первый IP (реальный клиент)
-      const firstIp = clientIp.split(',')[0].trim();
-      return firstIp === ip;
-    }
-    return false;
-  });
+  // Список разрешенных префиксов IP
+  const allowedPrefixes = [
+    '104.28' // Префикс VPN
+  ];
   
-  if (isAllowed) {
-    next(); // Разрешаем доступ
-  } else {
-    // Запрещаем доступ
-    console.log(`Доступ запрещен для IP: ${clientIp}`);
-    res.status(403).send('Доступ запрещен');
+  // Получаем фактический IP
+  let actualIp = clientIp;
+  if (clientIp.includes(',')) {
+    // Если пришел список IP, берем первый (реальный клиент)
+    actualIp = clientIp.split(',')[0].trim();
   }
+
+  // Проверяем точное соответствие IP
+  if (allowedIps.includes(actualIp)) {
+    return next();
+  }
+  
+  // Проверяем префиксы IP
+  for (const prefix of allowedPrefixes) {
+    if (actualIp.startsWith(prefix)) {
+      return next();
+    }
+  }
+  
+  // Запрещаем доступ
+  console.log(`Доступ запрещен для IP: ${actualIp} (оригинальный: ${clientIp})`);
+  res.status(403).send('Доступ запрещен');
 };
 
 // Применяем middleware для ограничения доступа
